@@ -1,8 +1,19 @@
+;; Copyright (c) 2008,2009 Lau B. Jensen <lau.jensen {at} bestinclass.dk
+;;                         
+;; All rights reserved.
+;;
+;; The use and distribution terms for this software are covered by the
+;; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;; which can be found in the file LICENSE.txt at the root of this distribution.
+;; By using this software in any fashion, you are agreeing to be bound by the
+;; terms of this license. You must not remove this notice, or any other, from
+;; this software.
+
 (ns dk.bestinclass.sofiaba
   (:gen-class
    :extends      com.jme.app.BaseGame
    :main         true
-   :exposes      {display   {:get getDisplay :set setDisplay}})
+   :exposes      {display   {:get getDisplay :set setDisplay}} )
   (:import (com.jme.app         BaseGame SimpleGame AbstractGame AbstractGame$ConfigShowMode)
            (com.jme.image       Texture)
            (com.jme.input       FirstPersonHandler InputHandler KeyBindingManager KeyInput)
@@ -17,8 +28,6 @@
            (com.jme.util        TextureManager Timer)
            (com.jme.util.geom   Debugger)))
 
-
-(println "Imports completed")
 
 ;========= GLOBALS: START
 
@@ -41,6 +50,12 @@
 
 (def app (dk.bestinclass.sofiaba.))
 
+(defn toggle-state
+  [nm]
+  (let [ object   (first ($get nm))
+         state    (second ($get nm)) ]
+    ($set nm [object (not state)])))
+
 (defn compile-it
   []
   (set! *compile-path* "/home/lau/coding/lisp/projects/sofiaba/classes/")
@@ -52,78 +67,95 @@
 
 (defn -update
   [this interpolation]
-  (.update ($get :timer))
-  (if (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "exit"))
-    (.finish this)))
-  
+  (let [ timer    ($get :timer)
+         input    ($get :input)
+         rootNode ($get :rootNode)
+         tpf      (.getTimePerFrame timer) ]
+    (.update timer)
+    (.. input (update tpf))
+    (.. rootNode (updateGeometricState tpf true))
+    (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "exit"))
+      (.finish this)) ; This needs to be unset, otherwise SLIME requires a restart
+    (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "toggle_wire"))
+      (.. (first ($get :wireState)) (setEnabled (second ($get :wireState))))
+      (toggle-state :wireState)
+      (.updateRenderState ($get :rootNode)))))
 
 (defn -render
   [this interpolation]
   (.. ($get :display) (getRenderer) (clearBuffers))
   (.. ($get :display) (getRenderer) (draw ($get :rootNode))))
 
-
 (defn -initSystem
   [this]
-  (println "== initSystem running")
   ($set :settings (. app (getNewSettings)))
-  ($set :screen (struct-map screen :width       (.getWidth      ($get :settings))
-                                   :height      (.getHeight     ($get :settings))
-                                   :depth       (.getDepth      ($get :settings))
-                                   :freq        (.getFreq       ($get :settings))
-                                   :fullscreen? (.getFullscreen ($get :settings))))
-  ($set :display (.. DisplaySystem (getDisplaySystem (.getRenderer ($get :settings) ))))
-  (.. this (setDisplay ($get :display)))
-  ($set :window
-        (. ($get :display) (createWindow (:width       ($get :screen))
-                                         (:height      ($get :screen))
-                                         (:depth       ($get :screen))
-                                         (:freq        ($get :screen))
-                                         (:fullscreen? ($get :screen)))))
-  (.. ($get :display) (getRenderer) (setBackgroundColor ColorRGBA/black))
-  ($set :camera (.. ($get :display) (getRenderer) (createCamera (:width  ($get :screen))
-                                                                (:height ($get :screen)))))
-  (.setFrustumPerspective ($get :camera)     (float 45.0)
-                                             (float (/ 640 480))
-                                             (float 1.0)
-                                             (float  1000.0))
-  (let [ loc  (Vector3f. (float 0)    (float 0)   (float 25.0))
-         left (Vector3f. (float -1.0) (float 0)   (float 0))
-         up   (Vector3f. (float 0)    (float 1.0) (float 0.0))
-         dir  (Vector3f. (float 0)    (float 0)   (float -1.0)) ]
-    (. ($get :camera) (setFrame loc left up dir))
-    (. ($get :camera)  update))
-  (.. KeyBindingManager (getKeyBindingManager) (set "exit" KeyInput/KEY_ESCAPE))
-  ($set :timer (Timer/getTimer))
-  (.. ($get :display) (getRenderer) (setCamera ($get :camera))))
+  (let [ settings   ($get :settings)
+         screen     (struct-map screen :width       (.getWidth      settings)
+                                       :height      (.getHeight     settings)
+                                       :depth       (.getDepth      settings)
+                                       :freq        (.getFreq       settings)
+                                       :fullscreen? (.getFullscreen settings)) 
+         display    (.. DisplaySystem (getDisplaySystem (.getRenderer settings ))) ]
+    (.. this (setDisplay display))
+    ($set :window
+          (. display (createWindow (:width screen) (:height screen) (:depth screen)
+                                   (:freq  screen) (:fullscreen? screen))))
+    (.. display (getRenderer) (setBackgroundColor ColorRGBA/black))
+    ($set :camera (.. display (getRenderer) (createCamera (:width  screen) (:height screen))))
+    (.setFrustumPerspective ($get :camera) (float 45.0) (float (/ 640 480)) (float 1.0) (float  1000.0))    
+    (let [ cam   ($get :camera)
+           loc   (Vector3f. (float 0)    (float 0)   (float 25.0))
+           left  (Vector3f. (float -1.0) (float 0)   (float 0))
+           up    (Vector3f. (float 0)    (float 1.0) (float 0.0))
+           dir   (Vector3f. (float 0)    (float 0)   (float -1.0))
+           input (FirstPersonHandler. cam) ]
+      (. cam (setFrame loc left up dir))
+      (. cam  update)
+      (.. input (getKeyboardLookHandler) (setActionSpeed (float 10.0)))
+      (.. input (getMouseLookHandler)    (setActionSpeed (float  1.0)))
+      (.. display (getRenderer) (setCamera ($get :camera)))
+      (.. KeyBindingManager (getKeyBindingManager) (set "exit" KeyInput/KEY_ESCAPE))
+      (.. KeyBindingManager (getKeyBindingManager) (set "toggle_wire" KeyInput/KEY_T))
+      ($set :input input)
+      ($set :timer (Timer/getTimer))
+      ($set :screen  screen)
+      ($set :display display))))
 
 
 (defn -initGame
   [this]
-  (println "== initGame running")
-  ($set :rootNode    (Node.   "rootNode"))
-  ($set :sphere   (Sphere. "Sphere" 30 30 25))
-  ($set :ts (.. ($get :display) (getRenderer) (createTextureState)))
-  (println "== initGame: DOTO :ts")
-  (doto ($get :ts)
-    (.setEnabled true))
-  (println "== initGame: DOTO sphere")
-  (doto ($get :sphere)
-    (.setLocalTranslation (Vector3f. 0 0 -40))
-    (.setModelBound       (BoundingBox.))
-    .updateModelBound
-    (.setRenderState ($get :ts)))
-  (println "== initGame: DOTO scene")
-  (doto ($get :rootNode)
-    (.attachChild ($get :sphere))
-    (.updateGeometricState (float 0.0) true)
-    .updateRenderState)
-  (println "== initGame: DONE"))
-                          
+  ($set :rootNode  (Node.   "rootNode"))
+  ($set :sphere    (Sphere. "Sphere" 30 30 25))
+  ($set :ts        (.. ($get :display) (getRenderer) (createTextureState)))
+  ($set :wireState [(.. ($get :display) (getRenderer) (createWireframeState)) false])
+  (let [ pointLight (PointLight.)
+         lightState (.. ($get :display) (getRenderer) (createLightState)) ]
+    (doto ($get :ts)
+      (.setEnabled true))
+    (doto (first ($get :wireState))
+      (.setEnabled false)) ; This is ugly, because it mathced the $set a couple of lines above
+    (doto ($get :sphere)
+      (.setLocalTranslation (Vector3f. 0 0 -40))
+      (.setModelBound       (BoundingBox.))
+      .updateModelBound
+      (.setRenderState ($get :ts)))
+    (doto pointLight
+      (.setDiffuse  (ColorRGBA. (float 1.0) (float 1.0) (float 1.0) (float 1.0)))
+      (.setAmbient  (ColorRGBA. (float 0.5) (float 0.5) (float 0.5) (float 1.0)))
+      (.setLocation (Vector3f.   100 100 100))
+      (.setEnabled  true))
+    (doto lightState
+      (.setEnabled true)
+      (.attach     pointLight))      
+    (doto ($get :rootNode)
+      (.setRenderState (first ($get :wireState)))
+      (.setRenderState lightState)
+      (.attachChild ($get :sphere))
+      (.updateGeometricState (float 0.0) true)
+      .updateRenderState)))                          
 
 (defn -reinit
   [this]
-  (println "== reinit running")
   (let [ scr   ($get :screen) ]
     (. ($get :display) (reCreateWindow 640 480 (:depth       scr)
                                                (:freq        scr)
@@ -131,13 +163,10 @@
 
 (defn -cleanup
   [this]
-  (println "== cleanup")
   (.deleteAll ($get :ts)))
 
 (defn -main
   []
-  (println "== main running")
   (doto app
     (.setConfigShowMode AbstractGame$ConfigShowMode/AlwaysShow)
     .start))
-

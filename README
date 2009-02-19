@@ -1,1 +1,16 @@
 SofiaBA - 3D Game for kids < 3 years old
+
+
+
+You'll need to download JMonkeyEngine 2.0 from JMonkeyEngine.com,
+You will also need LWJGL if you want to use the same rendering engine as me.
+
+Start Java with it, in your library path, like:
+export LD_LIBRARY_PATH==/PATH/TO/sofiaba/src/deps/native/linux/
+
+
+I'll update this...tomorrow :)
+
+
+
+/Lau
