@@ -14,37 +14,26 @@
    :extends      com.jme.app.BaseGame
    :main         true
    :exposes      {display   {:get getDisplay :set setDisplay}} )
-  (:import (com.jme.app         BaseGame SimpleGame AbstractGame AbstractGame$ConfigShowMode)
-           (com.jme.image       Texture)
-           (com.jme.input       FirstPersonHandler InputHandler KeyBindingManager KeyInput)
-           (com.jme.light       PointLight)
-           (com.jme.math        Vector3f)
-           (com.jme.renderer    Camera ColorRGBA)
-           (com.jme.scene       Node Text Spatial)
-           (com.jme.scene.shape Box Sphere)
-           (com.jme.scene.state LightState TextureState WireframeState ZBufferState)
-           (com.jme.system      DisplaySystem JmeException)
-           (com.jme.bounding    BoundingBox)
-           (com.jme.util        TextureManager Timer)
-           (com.jme.util.geom   Debugger)))
+  (:import (com.jme.app           BaseGame SimpleGame AbstractGame AbstractGame$ConfigShowMode)
+           (com.jme.image         Texture)
+           (com.jme.input         FirstPersonHandler InputHandler KeyBindingManager KeyInput)
+           (com.jme.light         PointLight DirectionalLight)
+           (com.jme.math          Vector3f)
+           (com.jme.renderer      Camera ColorRGBA)
+           (com.jme.scene         Node Text Spatial Skybox)
+           (com.jme.scene.shape   Box Sphere)
+           (com.jme.scene.state   LightState TextureState WireframeState ZBufferState)
+           (com.jme.system        DisplaySystem JmeException)
+           (com.jme.bounding      BoundingBox)
+           (com.jme.util          TextureManager Timer)
+           (com.jme.util.geom     Debugger)
+           (com.jmex.terrain      TerrainBlock)
+           (com.jmex.terrain.util MidPointHeightMap ProceduralTextureGenerator)
+           (javax.swing           ImageIcon))
+    (:load         "sofiaba/utils"
+                   "sofiaba/environment"))
+    
 
-
-;========= GLOBALS: START
-
-(def *globals* (ref (hash-map)))
-
-(defn $get
-  " Retrieves the value in keyword k - Global vars "
-  [k]
-  (@*globals* k))
-
-(defn $set
-  " Set the keyword k to a value - Global vars "
-  [k value]
-  (dosync
-   (alter *globals* assoc k value)))
-
-;========== GLOBALS: STOP - MISC: START
 
 (defstruct screen    :width :height :depth :freq :fullscreen?)
 
@@ -73,6 +62,7 @@
          tpf      (.getTimePerFrame timer) ]
     (.update timer)
     (.. input (update tpf))
+    (. ($get :skybox) (setLocalTranslation (.getLocation ($get :camera))))
     (.. rootNode (updateGeometricState tpf true))
     (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "exit"))
       (.finish this)) ; This needs to be unset, otherwise SLIME requires a restart
@@ -102,9 +92,10 @@
                                    (:freq  screen) (:fullscreen? screen))))
     (.. display (getRenderer) (setBackgroundColor ColorRGBA/black))
     ($set :camera (.. display (getRenderer) (createCamera (:width  screen) (:height screen))))
-    (.setFrustumPerspective ($get :camera) (float 45.0) (float (/ 640 480)) (float 1.0) (float  1000.0))    
+    (.setFrustumPerspective ($get :camera) (float 45.0) (float (/ (:width screen) (:height screen)))
+                            (float 1.0) (float  1000.0))
     (let [ cam   ($get :camera)
-           loc   (Vector3f. (float 0)    (float 0)   (float 25.0))
+           loc   (Vector3f. (float 500)    (float 150)   (float 500.0))
            left  (Vector3f. (float -1.0) (float 0)   (float 0))
            up    (Vector3f. (float 0)    (float 1.0) (float 0.0))
            dir   (Vector3f. (float 0)    (float 0)   (float -1.0))
@@ -124,35 +115,48 @@
 
 (defn -initGame
   [this]
-  ($set :rootNode  (Node.   "rootNode"))
-  ($set :sphere    (Sphere. "Sphere" 30 30 25))
-  ($set :ts        (.. ($get :display) (getRenderer) (createTextureState)))
-  ($set :wireState [(.. ($get :display) (getRenderer) (createWireframeState)) false])
-  (let [ pointLight (PointLight.)
-         lightState (.. ($get :display) (getRenderer) (createLightState)) ]
-    (doto ($get :ts)
-      (.setEnabled true))
-    (doto (first ($get :wireState))
-      (.setEnabled false)) ; This is ugly, because it mathced the $set a couple of lines above
+  ($set :rootNode      (Node.   "rootNode"))
+  ($set :sphere        (Sphere. "Sphere" 30 30 25))
+  ($set :ts            (.. ($get :display) (getRenderer) (createTextureState)))
+  ($set :wireState     [(.. ($get :display) (getRenderer) (createWireframeState)) false])
+  ($set :terrainBlock  (buildTerrain))
+  ($set :skybox        (makeSkybox))
+  (let [ pointLight    (PointLight.)
+         directedLight (DirectionalLight. )
+        lightState    (.. ($get :display) (getRenderer) (createLightState))
+         zBuffer       (.. ($get :display) (getRenderer) (createZBufferState)) ]
+    (. ($get :ts) (setEnabled true))
+    (. (first ($get :wireState)) (setEnabled false)) ; This is ugly, because it mathced the $set a couple of lines above
     (doto ($get :sphere)
       (.setLocalTranslation (Vector3f. 0 0 -40))
       (.setModelBound       (BoundingBox.))
       .updateModelBound
       (.setRenderState ($get :ts)))
+    (doto zBuffer
+      (.setEnabled true)
+      (.setFunction com.jme.scene.state.ZBufferState$TestFunction/LessThanOrEqualTo))
     (doto pointLight
       (.setDiffuse  (ColorRGBA. (float 1.0) (float 1.0) (float 1.0) (float 1.0)))
       (.setAmbient  (ColorRGBA. (float 0.5) (float 0.5) (float 0.5) (float 1.0)))
       (.setLocation (Vector3f.   100 100 100))
       (.setEnabled  true))
+    (doto directedLight
+      (.setDiffuse   (ColorRGBA. (float 1.0) (float 1.0) (float 1.0) (float 1.0)))
+      (.setAmbient   (ColorRGBA. (float 0.5) (float 0.5) (float 0.5) (float 1.0)))
+      (.setDirection (Vector3f.   1 -1 0 ))
+      (.setEnabled  true))
     (doto lightState
       (.setEnabled true)
-      (.attach     pointLight))      
+      (.attach     directedLight))      
     (doto ($get :rootNode)
       (.setRenderState (first ($get :wireState)))
       (.setRenderState lightState)
+      (.setRenderState zBuffer)
+      (.attachChild ($get :skybox))
       (.attachChild ($get :sphere))
+      (.attachChild ($get :terrainBlock))
       (.updateGeometricState (float 0.0) true)
-      .updateRenderState)))                          
+      .updateRenderState)))
 
 (defn -reinit
   [this]
@@ -168,5 +172,5 @@
 (defn -main
   []
   (doto app
-    (.setConfigShowMode AbstractGame$ConfigShowMode/AlwaysShow)
+    (.setConfigShowMode AbstractGame$ConfigShowMode/AlwaysShow (get-resource :logo))
     .start))
