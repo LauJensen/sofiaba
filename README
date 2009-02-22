@@ -1,12 +1,57 @@
-SofiaBA - 3D Game for kids < 3 years old
+ *   SofiaBA
+ *
+ *   Copyright (c) Lau B. Jensen. All rights reserved.
+ *   The use and distribution terms for this software are covered by the
+ *   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+ *   which can be found in the file LICENSE.txt at the root of this distribution.
+ *   By using this software in any fashion, you are agreeing to be bound by
+ *   the terms of this license.
+ *   You must not remove this notice, or any other, from this software.
 
+---------------------------------------------
+ABOUT:
 
+SofiaBA - 3D Game for kids < 3 years old. Its intended to provide changes in
+scenary and music, adding/removing special effects, as the child slams the keyboard.
+
+On another level, its intended to provide bindings for the JMonkeyEngine. jME
+is a cross-platform Gaming Engine, which provides an abundance of features. When
+Im done extending the core functionality, I plan to provide wrappers to better
+utilize the power of Lisp - Currently its a JavaInterop expedition :)
+
+This is where Clojure comes in. Clojure is a Lisp-1 which sits on the JVM, its fully
+dynamic, functional and geared for concurrency. Its being heavily developed upon by
+its author Rich Hickey, and is therefor my language of choice.
+
+If you're interested in Clojure, I suggest you stop by irc.freenode.net in channel
+#clojure - There you'll find Rich, myself and others - I dare say, the Clojure community
+is one of the best there is. And on that note, I'd like to give a special thanks
+to Chris Houser (Chouser), who is a gifted programmer with the patience of a saint!
+Without his help, sparring and input... I doubt I'd be working on 3D engines in Clojure
+today.
+
+---------------------------------------------
+INSTALLATION:
 
 You'll need to download JMonkeyEngine 2.0 from JMonkeyEngine.com,
 You will also need LWJGL if you want to use the same rendering engine as me.
 
 Start Java with it, in your library path, like:
 export LD_LIBRARY_PATH==/PATH/TO/sofiaba/src/deps/native/linux/
+java -cp /path/to/clojure.jar:/path/to/sofiab/src/ clojure.lang.Repl
+
+From the Repl, start the game like this
+
+user> (set! *compile-path* "/path/to/sofiaba/classes/")
+user> (use :reload 'dk.bestinclass.sofiaba)
+<runs initSystem and ouputs debugger-info>
+user> (compile 'dk.bestinclass.sofiaba)
+user> (in-ns 'dk.bestinclass.dk)
+#<Namespace dk.bestinclass.dk>
+dk.bestinclass.dk> (-main)
+
+
+
 
 
 I'll update this...tomorrow :)
