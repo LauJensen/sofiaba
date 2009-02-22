@@ -40,7 +40,7 @@
       :east       "res/skybox/east.jpg"
       :top        "res/skybox/top.jpg"
 
-      :detailmap  "res/textures/detail.jpg"} )
+      :detailmap  "res/textures/detail.jpg" } )
      
 
 (defn get-resource-uri

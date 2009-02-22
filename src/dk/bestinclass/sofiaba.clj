@@ -29,11 +29,9 @@
            (com.jme.util.geom     Debugger)
            (com.jmex.terrain      TerrainBlock)
            (com.jmex.terrain.util MidPointHeightMap ProceduralTextureGenerator)
-           (dk.bestinclass.sofiaba inputController)
            (javax.swing           ImageIcon))
     (:load         "sofiaba/utils"
                    "sofiaba/environment"))
-;                   "sofiaba/inputhandler"))
 
 (defstruct screen    :width :height :depth :freq :fullscreen?)
 
@@ -100,7 +98,6 @@
            left  (Vector3f. (float -1.0) (float 0)   (float 0))
            up    (Vector3f. (float 0)    (float 1.0) (float 0.0))
            dir   (Vector3f. (float 0)    (float 0)   (float -1.0)) 
-;           input (dk.bestinclass.sofiaba.inputController. "LWJGL" ( ]
            input (FirstPersonHandler. cam) ]
       (. cam (setFrame loc left up dir))
       (. cam  update)

@@ -11,6 +11,11 @@
 
 (clojure.core/in-ns 'dk.bestinclass.sofiaba)
 
+(import '(com.jme.scene Skybox$Face)
+        '(com.jme.image Texture$ApplyMode Texture$CombinerFunctionRGB
+                        Texture$CombinerSource Texture$CombinerOperandRGB
+                        Texture$CombinerScale Texture$WrapMode))
+
 (def BilNoMipMap com.jme.image.Texture$MinificationFilter/BilinearNoMipMaps)
 (def Bil         com.jme.image.Texture$MagnificationFilter/Bilinear)
 
@@ -19,7 +24,7 @@
   [resource-key]
   (if (keyword? resource-key)
     (.getImage (ImageIcon. (get-resource resource-key)))
-    (.getImage (.getImageIcon resource-key))))
+    (.getImage (.getImageIcon resource-key)))) ; Presumed ProceduralTextureGenerator
 
 ;======= TERRAIN: START
 
@@ -42,23 +47,23 @@
     (let
         [t1 (TextureManager/loadTexture (>Image textGenerator) BilNoMipMap Bil true)
          t2 (TextureManager/loadTexture (>Image :detailmap)    BilNoMipMap Bil true) ]
-      (. t2 (setWrap  com.jme.image.Texture$WrapMode/MirroredRepeat))
+      (. t2 (setWrap Texture$WrapMode/MirroredRepeat))
       (doto t1
-        (.setApply             com.jme.image.Texture$ApplyMode/Combine)
-        (.setCombineFuncRGB    com.jme.image.Texture$CombinerFunctionRGB/Modulate)
-        (.setCombineSrc0RGB    com.jme.image.Texture$CombinerSource/CurrentTexture) ;;???
-        (.setCombineOp0RGB     com.jme.image.Texture$CombinerOperandRGB/SourceColor)
-        (.setCombineSrc1RGB    com.jme.image.Texture$CombinerSource/PrimaryColor)
-        (.setCombineOp1RGB     com.jme.image.Texture$CombinerOperandRGB/SourceColor)
-        (.setCombineScaleRGB   com.jme.image.Texture$CombinerScale/One))
+        (.setApply             Texture$ApplyMode/Combine)
+        (.setCombineFuncRGB    Texture$CombinerFunctionRGB/Modulate)
+        (.setCombineSrc0RGB    Texture$CombinerSource/CurrentTexture) ;;???
+        (.setCombineOp0RGB     Texture$CombinerOperandRGB/SourceColor)
+        (.setCombineSrc1RGB    Texture$CombinerSource/PrimaryColor)
+        (.setCombineOp1RGB     Texture$CombinerOperandRGB/SourceColor)
+        (.setCombineScaleRGB   Texture$CombinerScale/One))
       (doto t2
-        (.setApply             com.jme.image.Texture$ApplyMode/Combine)
-        (.setCombineFuncRGB    com.jme.image.Texture$CombinerFunctionRGB/Add)
-        (.setCombineSrc0RGB    com.jme.image.Texture$CombinerSource/CurrentTexture) ;;???
-        (.setCombineOp0RGB     com.jme.image.Texture$CombinerOperandRGB/SourceColor)
-        (.setCombineSrc1RGB    com.jme.image.Texture$CombinerSource/Previous)
-        (.setCombineOp1RGB     com.jme.image.Texture$CombinerOperandRGB/SourceColor)
-        (.setCombineScaleRGB   com.jme.image.Texture$CombinerScale/One))
+        (.setApply             Texture$ApplyMode/Combine)
+        (.setCombineFuncRGB    Texture$CombinerFunctionRGB/Add)
+        (.setCombineSrc0RGB    Texture$CombinerSource/CurrentTexture) ;;???
+        (.setCombineOp0RGB     Texture$CombinerOperandRGB/SourceColor)
+        (.setCombineSrc1RGB    Texture$CombinerSource/Previous)
+        (.setCombineOp1RGB     Texture$CombinerOperandRGB/SourceColor)
+        (.setCombineScaleRGB   Texture$CombinerScale/One))
       (doto textState
         (.setEnabled true)
         (.setTexture t1 0)
@@ -80,10 +85,10 @@
          west     (TextureManager/loadTexture (>Image :west)  BilNoMipMap Bil true) 
          top      (TextureManager/loadTexture (>Image :top)   BilNoMipMap Bil true) ]
     (doto skyBox
-      (.setTexture com.jme.scene.Skybox$Face/North north)
-      (.setTexture com.jme.scene.Skybox$Face/South south)
-      (.setTexture com.jme.scene.Skybox$Face/East  east)
-      (.setTexture com.jme.scene.Skybox$Face/West  west))
+      (.setTexture Skybox$Face/North north)
+      (.setTexture Skybox$Face/South south)
+      (.setTexture Skybox$Face/East  east)
+      (.setTexture Skybox$Face/West  west))
 ;      (.setTexture com.jme.scene.Skybox$Face/Up    top)
  ;     (.setTexture com.jme.scene.Skybox$Face/Down  top))
     skyBox))
