@@ -102,7 +102,7 @@
            input (FirstPersonHandler. cam) ]
       (. cam (setFrame loc left up dir))
       (. cam  update)
-      (.. input (getKeyboardLookHandler) (setActionSpeed (float 10.0)))
+      (.. input (getKeyboardLookHandler) (setActionSpeed (float 300.0)))
       (.. input (getMouseLookHandler)    (setActionSpeed (float  1.0)))
       (.. display (getRenderer) (setCamera ($get :camera)))
       (.. KeyBindingManager (getKeyBindingManager) (set "exit" KeyInput/KEY_ESCAPE))
@@ -116,7 +116,6 @@
 (defn -initGame
   [this]
   ($set :rootNode      (Node.   "rootNode"))
-  ($set :sphere        (Sphere. "Sphere" 30 30 25))
   ($set :ts            (.. ($get :display) (getRenderer) (createTextureState)))
   ($set :wireState     [(.. ($get :display) (getRenderer) (createWireframeState)) false])
   ($set :terrainBlock  (buildTerrain))
@@ -127,11 +126,6 @@
          zBuffer       (.. ($get :display) (getRenderer) (createZBufferState)) ]
     (. ($get :ts) (setEnabled true))
     (. (first ($get :wireState)) (setEnabled false)) ; This is ugly, because it mathced the $set a couple of lines above
-    (doto ($get :sphere)
-      (.setLocalTranslation (Vector3f. 0 0 -40))
-      (.setModelBound       (BoundingBox.))
-      .updateModelBound
-      (.setRenderState ($get :ts)))
     (doto zBuffer
       (.setEnabled true)
       (.setFunction com.jme.scene.state.ZBufferState$TestFunction/LessThanOrEqualTo))
@@ -153,7 +147,6 @@
       (.setRenderState lightState)
       (.setRenderState zBuffer)
       (.attachChild ($get :skybox))
-      (.attachChild ($get :sphere))
       (.attachChild ($get :terrainBlock))
       (.updateGeometricState (float 0.0) true)
       .updateRenderState)))
