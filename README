@@ -43,9 +43,9 @@ java -cp /path/to/clojure.jar:/path/to/sofiab/src/ clojure.lang.Repl
 From the Repl, start the game like this
 
 user> (set! *compile-path* "/path/to/sofiaba/classes/")
+user> (compile 'dk.bestinclass.sofiaba)
 user> (use :reload 'dk.bestinclass.sofiaba)
 <runs initSystem and ouputs debugger-info>
-user> (compile 'dk.bestinclass.sofiaba)
 user> (in-ns 'dk.bestinclass.dk)
 #<Namespace dk.bestinclass.dk>
 dk.bestinclass.dk> (-main)
