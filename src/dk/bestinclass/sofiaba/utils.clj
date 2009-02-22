@@ -30,13 +30,17 @@
 
 (def *resources*
      {:logo       "res/logo.png"
+      
       :grass      "res/textures/grass.jpg"
       :dirt       "res/textures/dirt.jpg"
+      
       :north      "res/skybox/north.jpg"
       :south      "res/skybox/south.jpg"
       :west       "res/skybox/west.jpg"
       :east       "res/skybox/east.jpg"
-      :top         "res/skybox/top.jpg"} )
+      :top        "res/skybox/top.jpg"
+
+      :detailmap  "res/textures/detail.jpg"} )
      
 
 (defn get-resource-uri
