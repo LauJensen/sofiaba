@@ -14,24 +14,29 @@
    :extends      com.jme.app.BaseGame
    :main         true
    :exposes      {display   {:get getDisplay :set setDisplay}} )
-  (:import (com.jme.app           BaseGame SimpleGame AbstractGame AbstractGame$ConfigShowMode)
-           (com.jme.image         Texture)
-           (com.jme.input         FirstPersonHandler InputHandler KeyBindingManager KeyInput)
-           (com.jme.light         PointLight DirectionalLight)
-           (com.jme.math          Vector3f)
-           (com.jme.renderer      Camera ColorRGBA)
-           (com.jme.scene         Node Text Spatial Skybox)
-           (com.jme.scene.shape   Box Sphere)
-           (com.jme.scene.state   LightState TextureState WireframeState ZBufferState)
-           (com.jme.system        DisplaySystem JmeException)
-           (com.jme.bounding      BoundingBox)
-           (com.jme.util          TextureManager Timer)
-           (com.jme.util.geom     Debugger)
-           (com.jmex.terrain      TerrainBlock)
-           (com.jmex.terrain.util MidPointHeightMap ProceduralTextureGenerator)
-           (javax.swing           ImageIcon))
-    (:load         "sofiaba/utils"
-                   "sofiaba/environment"))
+  (:import (com.jme.app                  BaseGame SimpleGame AbstractGame AbstractGame$ConfigShowMode)
+           (com.jme.image                Texture)
+           (com.jme.input                FirstPersonHandler InputHandler KeyBindingManager KeyInput)
+           (com.jme.light                PointLight DirectionalLight)
+           (com.jme.math                 Vector3f)
+           (com.jme.renderer             Camera ColorRGBA)
+           (com.jme.scene                Node Text Spatial Skybox)
+           (com.jme.scene.shape          Box Sphere Quad)
+           (com.jme.scene.state          LightState TextureState WireframeState ZBufferState ZBufferState$TestFunction)
+           (com.jme.system               DisplaySystem JmeException)
+           (com.jme.bounding             BoundingBox)
+           (com.jme.util                 TextureManager Timer)
+           (com.jme.util.geom            Debugger)
+           (com.jmex.terrain             TerrainBlock)
+           (com.jmex.terrain.util        MidPointHeightMap ProceduralTextureGenerator ImageBasedHeightMap)
+           (com.jmex.physics             DynamicPhysicsNode StaticPhysicsNode)
+           (com.jmex.physics.util.states PhysicsGameState)
+           (javax.swing                  ImageIcon))
+  (:load           "sofiaba/wrappers"
+                   "sofiaba/utils"
+                   "sofiaba/environment" ))
+
+;========== IMPORTS: STOP - DEFINITIONS: START
 
 (defstruct screen    :width :height :depth :freq :fullscreen?)
 
@@ -43,15 +48,34 @@
          state    (second ($get nm)) ]
     ($set nm [object (not state)])))
 
+
 (defn compile-it
   " Personal helper function, remove from your project "
   []
   (set! *compile-path* "/home/lau/coding/lisp/projects/sofiaba/classes/")
   (compile 'dk.bestinclass.sofiaba)
-  (in-ns 'dk.bestinclass.sofiaba))
+  (in-ns 'dk.bestinclass.sofiaba)
+  (.run #(Thread. (.start app))))
 
-;========== MISC: TOP - BASEGAME: START
 
+;========== MISC: STOP - BASEGAME: START
+
+(defn updateWater
+  [tpf]
+  (let [  tex1   (:tex1 ($get :waterworld))
+          tex2   (:tex2 ($get :waterworld)) ]
+    (when (> (.getX (.getTranslation tex1)) 5000)
+      (.setTranslation tex1 (Vector3f. 0 0 0)))
+    (when (> (.getY (.getTranslation tex2)) 5000)
+      (.setTranslation tex2 (Vector3f. 0 0 0)))
+    (.setX (.getTranslation tex1) (+ (.getX (.getTranslation tex1)) (* (float 0.00004) tpf)))
+    (.setY (.getTranslation tex2) (+ (.getY (.getTranslation tex2)) (* (float 0.09) tpf)))
+    (doto (:quad1 ($get :waterworld))
+      .updateRenderState
+      (.updateGeometricState tpf true))
+    (doto (:quad2 ($get :waterworld))
+      .updateRenderState
+      (.updateGeometricState tpf true))))
 
 (defn -update
   [this interpolation]
