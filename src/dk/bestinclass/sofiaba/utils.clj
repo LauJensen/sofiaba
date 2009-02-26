@@ -30,9 +30,14 @@
 
 (def *resources*
      {:logo       "res/logo.png"
-      
+
+      :water      "res/textures/water.jpg"
+      :water1     "res/textures/water1.jpg"
+      :water2     "res/textures/water2.jpg"
+      :sand       "res/textures/sand.jpg"
       :grass      "res/textures/grass.jpg"
       :dirt       "res/textures/dirt.jpg"
+      :highest    "res/textures/highest.jpg"
       
       :north      "res/skybox/north.jpg"
       :south      "res/skybox/south.jpg"
@@ -40,7 +45,9 @@
       :east       "res/skybox/east.jpg"
       :top        "res/skybox/top.jpg"
 
-      :detailmap  "res/textures/detail.jpg" } )
+      :detailmap  "res/textures/detail.jpg"
+      :heightmap  "res/textures/heightmap.jpg"
+      :nunna      "res/textures/objects/nunna.jpg"} )
      
 
 (defn get-resource-uri
@@ -54,4 +61,5 @@
   [key]
   (get-resource-uri (*resources* key)))
 
-;======= RESOURCES: STOP -
+;======= RESOURCES: STOP - HELPERS START
+
