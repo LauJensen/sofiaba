@@ -35,9 +35,26 @@ INSTALLATION:
 
 You'll need to download JMonkeyEngine 2.0 from JMonkeyEngine.com,
 You will also need LWJGL if you want to use the same rendering engine as me.
+In addition, there's a seperate library called jMEPhysics, which you need to
+grab from googlecode, and compile with
+
+ant release.all -lib /path/to/jME-2.0.jar
+
+This will generate jmephysics.jar, which you need to put in your class-path, along
+with
+
+odejava.dll
+odejava-jni.jar
+
+In the library path, you need to stick:
+
+libodejava.jnilib
+libodejava.so
+libodejava64.so
 
 First make /..../sofiaba/classes/
 
+(library path is where you keep LWJGL)
 Start Java with it, in your library path, like:
 export LD_LIBRARY_PATH==/PATH/TO/sofiaba/src/deps/native/linux/
 java -cp /path/to/clojure.jar:/path/to/sofiab/src/ clojure.lang.Repl
