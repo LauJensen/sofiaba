@@ -87,6 +87,10 @@
     (.. input (update tpf))
     (. ($get :skybox) (setLocalTranslation (.getLocation ($get :camera))))
     (.. rootNode (updateGeometricState tpf true))
+    (updateWater tpf)
+    (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "nunnaba"))
+      (addNunna ($get :rootNode) ($get :display))
+      (.updateRenderState ($get :rootNode)))
     (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "exit"))
       (.finish this)) ; This needs to be unset, otherwise SLIME requires a restart
     (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "toggle_wire"))
@@ -114,65 +118,68 @@
           (. display (createWindow (:width screen) (:height screen) (:depth screen)
                                    (:freq  screen) (:fullscreen? screen))))
     (.. display (getRenderer) (setBackgroundColor ColorRGBA/black))
-    ($set :camera (.. display (getRenderer) (createCamera (:width  screen) (:height screen))))
+    ($set :camera (.. display (getRenderer) (createCamera (:width  screen) (:height screen))))    
+    (.setFrustum ($get :camera) (float 0.000001) (float 400) (float 50) (float 50) (float 50) (float 50))
     (.setFrustumPerspective ($get :camera) (float 45.0) (float (/ (:width screen) (:height screen)))
-                            (float 1.0) (float  1000.0))
+                            (float 100.0) (float  10000.0))
     (let [ cam   ($get :camera)
            loc   (Vector3f. (float 500)    (float 150)   (float 500.0))
-           left  (Vector3f. (float -1.0) (float 0)   (float 0))
-           up    (Vector3f. (float 0)    (float 1.0) (float 0.0))
-           dir   (Vector3f. (float 0)    (float 0)   (float -1.0)) 
+           left  (Vector3f. (float -1.0)   (float 0)   (float 0))
+           up    (Vector3f. (float 0)      (float 1.0) (float 0.0))
+           dir   (Vector3f. (float 0)      (float 0)   (float -1.0)) 
            input (FirstPersonHandler. cam) ]
       (. cam (setFrame loc left up dir))
       (. cam  update)
-      (.. input (getKeyboardLookHandler) (setActionSpeed (float 300.0)))
+      (.. input (getKeyboardLookHandler) (setActionSpeed (float 600.0)))
       (.. input (getMouseLookHandler)    (setActionSpeed (float  1.0)))
       (.. display (getRenderer) (setCamera ($get :camera)))
       (.. KeyBindingManager (getKeyBindingManager) (set "exit" KeyInput/KEY_ESCAPE))
       (.. KeyBindingManager (getKeyBindingManager) (set "toggle_wire" KeyInput/KEY_T))
+      (.. KeyBindingManager (getKeyBindingManager) (set "nunnaba" KeyInput/KEY_N))
       ($set :input input)
       ($set :timer (Timer/getTimer))
       ($set :screen  screen)
       ($set :display display))))
-
 
 (defn -initGame
   [this]
   ($set :rootNode      (Node.   "rootNode"))
   ($set :ts            (.. ($get :display) (getRenderer) (createTextureState)))
   ($set :wireState     [(.. ($get :display) (getRenderer) (createWireframeState)) false])
-  ($set :terrainBlock  (buildTerrain))
   ($set :skybox        (makeSkybox))
-  (let [ pointLight    (PointLight.)
-         directedLight (DirectionalLight. )
-        lightState    (.. ($get :display) (getRenderer) (createLightState))
+  ($set :waterworld    (buildWater ($get :display)))
+  (let [ directedLight (DirectionalLight. )
+         lightState    (.. ($get :display) (getRenderer) (createLightState))
          zBuffer       (.. ($get :display) (getRenderer) (createZBufferState)) ]
     (. ($get :ts) (setEnabled true))
-    (. (first ($get :wireState)) (setEnabled false)) ; This is ugly, because it mathced the $set a couple of lines above
+    (. (first ($get :wireState)) (setEnabled false)) ; This is ugly, because it matched
+                                                     ; the $set a couple of lines above
     (doto zBuffer
       (.setEnabled true)
       (.setFunction com.jme.scene.state.ZBufferState$TestFunction/LessThanOrEqualTo))
-    (doto pointLight
-      (.setDiffuse  (ColorRGBA. (float 1.0) (float 1.0) (float 1.0) (float 1.0)))
-      (.setAmbient  (ColorRGBA. (float 0.5) (float 0.5) (float 0.5) (float 1.0)))
-      (.setLocation (Vector3f.   100 100 100))
-      (.setEnabled  true))
     (doto directedLight
       (.setDiffuse   (ColorRGBA. (float 1.0) (float 1.0) (float 1.0) (float 1.0)))
       (.setAmbient   (ColorRGBA. (float 0.5) (float 0.5) (float 0.5) (float 1.0)))
       (.setDirection (Vector3f.   1 -1 0 ))
       (.setEnabled  true))
     (doto lightState
+      (.detachAll)
       (.setEnabled true)
-      (.attach     directedLight))      
+      (.attach     directedLight))
+;    ($set :gamestate     (PhysicsGameState. "Gamestate"))
+    ($set :terrainBlock  (buildTerrain ))
     (doto ($get :rootNode)
       (.setRenderState (first ($get :wireState)))
       (.setRenderState lightState)
       (.setRenderState zBuffer)
-      (.attachChild ($get :skybox))
       (.attachChild ($get :terrainBlock))
+      (.attachChild ($get :skybox))
+      (.attachChild (:quad1 ($get :waterworld)))
+      (.attachChild (:quad2 ($get :waterworld)))
       (.updateGeometricState (float 0.0) true)
       .updateRenderState)))
+
+
 
 (defn -reinit
   [this]
@@ -190,3 +197,4 @@
   (doto app
     (.setConfigShowMode AbstractGame$ConfigShowMode/AlwaysShow (get-resource :logo))
     .start))
+
