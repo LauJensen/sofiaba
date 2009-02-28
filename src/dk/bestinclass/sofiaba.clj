@@ -33,7 +33,7 @@
            (com.jmex.physics             DynamicPhysicsNode StaticPhysicsNode)
            (com.jmex.physics.util.states PhysicsGameState)
            (javax.swing                  ImageIcon))
-  (:load           "sofiaba/utils"
+  (:load           "sofiaba/resources"
                    "sofiaba/wrappers"
                    "sofiaba/environment" ))
 
