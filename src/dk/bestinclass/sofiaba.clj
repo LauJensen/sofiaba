@@ -129,7 +129,7 @@
 
 (defn makeBeach
   []
-  (let [beach  (Box. "Beach" (Vector3f. 0 5 0) 10240 1 1024) ]
+  (let [beach  (Box. "Beach" (Vector3f. 0 5 0) (/ 10240 2) 2 (/ 10240 2)) ]
     (setTexture beach :sand)
     beach))
 
