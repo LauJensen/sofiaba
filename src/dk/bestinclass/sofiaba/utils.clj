@@ -11,21 +11,6 @@
 
 (clojure.core/in-ns 'dk.bestinclass.sofiaba)
 
-;========= GLOBALS: START
-
-(def *globals* (ref (hash-map)))
-
-(defn $get
-  " Retrieves the value in keyword k - Global vars "
-  [k]
-  (@*globals* k))
-
-(defn $set
-  " Set the keyword k to a value - Global vars "
-  [k value]
-  (dosync
-   (alter *globals* assoc k value)))
-
 ;======= GLOBALS: STOP - RESOURCES: START
 
 (def *resources*

@@ -92,18 +92,11 @@
         (.setRenderState textState)
         (.setDetailTexture 1 16)
         (.setRenderQueueMode 2))) ;; END ImageBasedHeightMap handling
-    (let [beach   (Quad. "beach" 10240 10240)]
-      (flipQuad beach)
-      (setTexture beach ($get :display) :sand)
-      (.setLocalTranslation beach (Vector3f. 0 2 0))
-      (.updateModelBound beach)
-      (.updateRenderState beach)
-      (let [ newNode (Node. "Terrain block") ];(.. gamestate (getPhysicsSpace) (createStaticNode)) ]
-;        (.attachChild   newNode beach)
-        (.setLocalScale newNode (float 20))
-        (.attachChild   newNode terrainBlock)
-                                        ;   (.generatePhysicsGeometry true)
-        newNode))))
+    (let [ newNode (Node. "Terrain block") ]
+                                        ;        (.attachChild   newNode beach)
+      (.setLocalScale newNode (float 20))
+      (.attachChild   newNode terrainBlock)
+      newNode)))
       
 ;======= SKYBOX: START
 

@@ -22,7 +22,8 @@
            (com.jme.renderer             Camera ColorRGBA)
            (com.jme.scene                Node Text Spatial Skybox)
            (com.jme.scene.shape          Box Sphere Quad)
-           (com.jme.scene.state          LightState TextureState WireframeState ZBufferState ZBufferState$TestFunction)
+           (com.jme.scene.state          LightState TextureState WireframeState
+                                         ZBufferState ZBufferState$TestFunction)
            (com.jme.system               DisplaySystem JmeException)
            (com.jme.bounding             BoundingBox)
            (com.jme.util                 TextureManager Timer)
@@ -32,8 +33,8 @@
            (com.jmex.physics             DynamicPhysicsNode StaticPhysicsNode)
            (com.jmex.physics.util.states PhysicsGameState)
            (javax.swing                  ImageIcon))
-  (:load           "sofiaba/wrappers"
-                   "sofiaba/utils"
+  (:load           "sofiaba/utils"
+                   "sofiaba/wrappers"
                    "sofiaba/environment" ))
 
 ;========== IMPORTS: STOP - DEFINITIONS: START
@@ -48,7 +49,6 @@
          state    (second ($get nm)) ]
     ($set nm [object (not state)])))
 
-
 (defn compile-it
   " Personal helper function, remove from your project "
   []
@@ -56,7 +56,6 @@
   (compile 'dk.bestinclass.sofiaba)
   (in-ns 'dk.bestinclass.sofiaba)
   (.run #(Thread. (.start app))))
-
 
 ;========== MISC: STOP - BASEGAME: START
 
@@ -77,31 +76,35 @@
       .updateRenderState
       (.updateGeometricState tpf true))))
 
+(defn actOnInput
+  [this]
+  (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "nunnaba"))
+    (addNunna ($get :rootnode) ($get :display))
+    (.updateRenderState ($get :rootnode)))
+  (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "exit"))
+    (.finish this)) ; This needs to be unset, otherwise SLIME requires a restart
+  (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "toggle_wire"))
+    (.. (first ($get :wirestate)) (setEnabled (second ($get :wirestate))))
+    (toggle-state :wirestate)
+    (.updateRenderState ($get :rootnode))))
+
 (defn -update
   [this interpolation]
   (let [ timer    ($get :timer)
          input    ($get :input)
-         rootNode ($get :rootNode)
+         rootNode ($get :rootnode)
          tpf      (.getTimePerFrame timer) ]
     (.update timer)
+    (actOnInput this)
     (.. input (update tpf))
     (. ($get :skybox) (setLocalTranslation (.getLocation ($get :camera))))
     (.. rootNode (updateGeometricState tpf true))
-    (updateWater tpf)
-    (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "nunnaba"))
-      (addNunna ($get :rootNode) ($get :display))
-      (.updateRenderState ($get :rootNode)))
-    (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "exit"))
-      (.finish this)) ; This needs to be unset, otherwise SLIME requires a restart
-    (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "toggle_wire"))
-      (.. (first ($get :wireState)) (setEnabled (second ($get :wireState))))
-      (toggle-state :wireState)
-      (.updateRenderState ($get :rootNode)))))
+    (updateWater tpf)))
 
 (defn -render
   [this interpolation]
   (.. ($get :display) (getRenderer) (clearBuffers))
-  (.. ($get :display) (getRenderer) (draw ($get :rootNode))))
+  (.. ($get :display) (getRenderer) (draw ($get :rootnode))))
 
 (defn -initSystem
   [this]
@@ -111,82 +114,56 @@
                                        :height      (.getHeight     settings)
                                        :depth       (.getDepth      settings)
                                        :freq        (.getFreq       settings)
-                                       :fullscreen? (.getFullscreen settings)) 
+                                       :fullscreen? (.getFullscreen settings))
          display    (.. DisplaySystem (getDisplaySystem (.getRenderer settings ))) ]
     (.. this (setDisplay display))
     ($set :window
           (. display (createWindow (:width screen) (:height screen) (:depth screen)
                                    (:freq  screen) (:fullscreen? screen))))
     (.. display (getRenderer) (setBackgroundColor ColorRGBA/black))
-    ($set :camera (.. display (getRenderer) (createCamera (:width  screen) (:height screen))))    
-    (.setFrustum ($get :camera) (float 0.000001) (float 400) (float 50) (float 50) (float 50) (float 50))
-    (.setFrustumPerspective ($get :camera) (float 45.0) (float (/ (:width screen) (:height screen)))
-                            (float 100.0) (float  10000.0))
-    (let [ cam   ($get :camera)
-           loc   (Vector3f. (float 500)    (float 150)   (float 500.0))
-           left  (Vector3f. (float -1.0)   (float 0)   (float 0))
-           up    (Vector3f. (float 0)      (float 1.0) (float 0.0))
-           dir   (Vector3f. (float 0)      (float 0)   (float -1.0)) 
-           input (FirstPersonHandler. cam) ]
-      (. cam (setFrame loc left up dir))
-      (. cam  update)
-      (.. input (getKeyboardLookHandler) (setActionSpeed (float 600.0)))
-      (.. input (getMouseLookHandler)    (setActionSpeed (float  1.0)))
-      (.. display (getRenderer) (setCamera ($get :camera)))
-      (.. KeyBindingManager (getKeyBindingManager) (set "exit" KeyInput/KEY_ESCAPE))
-      (.. KeyBindingManager (getKeyBindingManager) (set "toggle_wire" KeyInput/KEY_T))
-      (.. KeyBindingManager (getKeyBindingManager) (set "nunnaba" KeyInput/KEY_N))
-      ($set :input input)
-      ($set :timer (Timer/getTimer))
-      ($set :screen  screen)
-      ($set :display display))))
+    (let [ camera (makeCamera        display screen 1 4000)
+           input  (makeInputHandler  camera  600     1) ]
+      (.. display (getRenderer) (setCamera camera))
+      (attachCommands { :exit        KeyInput/KEY_ESCAPE
+                        :toggle_wire KeyInput/KEY_T
+                        :nunnaba     KeyInput/KEY_N })
+      (indoctrinate
+          :input   input
+          :timer   (Timer/getTimer)
+          :screen  screen
+          :display display))))
+
+(defn applyRenderStates
+  " Apply one or more RenderStates to a node. These will be automatically updated
+    using updateRenderState, so toggle individually using setEnabled "
+  [node & states]
+  (doseq [rstate states]
+    (.setRenderState node rstate))
+  (.updateRenderState node))
 
 (defn -initGame
   [this]
-  ($set :rootNode      (Node.   "rootNode"))
-  ($set :ts            (.. ($get :display) (getRenderer) (createTextureState)))
-  ($set :wireState     [(.. ($get :display) (getRenderer) (createWireframeState)) false])
-  ($set :skybox        (makeSkybox))
-  ($set :waterworld    (buildWater ($get :display)))
-  (let [ directedLight (DirectionalLight. )
-         lightState    (.. ($get :display) (getRenderer) (createLightState))
-         zBuffer       (.. ($get :display) (getRenderer) (createZBufferState)) ]
-    (. ($get :ts) (setEnabled true))
-    (. (first ($get :wireState)) (setEnabled false)) ; This is ugly, because it matched
+  (indoctrinate
+      :rootnode      (Node.   "rootNode")
+      :ts            (.. ($get :display) (getRenderer) (createTextureState))
+      :wirestate     [(.. ($get :display) (getRenderer) (createWireframeState)) false]
+      :skybox        (makeSkybox)
+      :waterworld    (buildWater ($get :display))
+      :primarylight  (makeDirectedLight [1 1 1 1] [0.5 0.5 0.5 1] [0 -1 0])
+      :terrainblock  (buildTerrain)
+      :zbuffer       (makeZBuffer ZBufferState$TestFunction/LessThanOrEqualTo))
+  (. ($get :ts) (setEnabled true))
+  (. (first ($get :wirestate)) (setEnabled false)) ; This is ugly, because it matched
                                                      ; the $set a couple of lines above
-    (doto zBuffer
-      (.setEnabled true)
-      (.setFunction com.jme.scene.state.ZBufferState$TestFunction/LessThanOrEqualTo))
-    (doto directedLight
-      (.setDiffuse   (ColorRGBA. (float 1.0) (float 1.0) (float 1.0) (float 1.0)))
-      (.setAmbient   (ColorRGBA. (float 0.5) (float 0.5) (float 0.5) (float 1.0)))
-      (.setDirection (Vector3f.   1 -1 0 ))
-      (.setEnabled  true))
-    (doto lightState
-      (.detachAll)
-      (.setEnabled true)
-      (.attach     directedLight))
-;    ($set :gamestate     (PhysicsGameState. "Gamestate"))
-    ($set :terrainBlock  (buildTerrain ))
-    (doto ($get :rootNode)
-      (.setRenderState (first ($get :wireState)))
-      (.setRenderState lightState)
-      (.setRenderState zBuffer)
-      (.attachChild ($get :terrainBlock))
-      (.attachChild ($get :skybox))
-      (.attachChild (:quad1 ($get :waterworld)))
-      (.attachChild (:quad2 ($get :waterworld)))
-      (.updateGeometricState (float 0.0) true)
-      .updateRenderState)))
-
-
+  (addToRoot (:quad1 ($get :waterworld)) (:quad2 ($get :waterworld))
+             ($get :terrainblock) ($get :skybox))
+  (applyRenderStates ($get :rootnode) (first ($get :wirestate)) ($get :primarylight) ($get :zbuffer)))
 
 (defn -reinit
   [this]
   (let [ scr   ($get :screen) ]
-    (. ($get :display) (reCreateWindow 640 480 (:depth       scr)
-                                               (:freq        scr)
-                                               (:fullscreen? scr)))))
+    (. ($get :display)
+       (reCreateWindow (:width scr) (:height scr) (:depth scr) (:freq scr) (:fullscreen? scr)))))
 
 (defn -cleanup
   [this]
