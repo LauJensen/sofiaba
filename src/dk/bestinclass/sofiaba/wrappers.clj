@@ -35,14 +35,6 @@
     (doseq [this-key (keys map-of-candidates)]
       ($set this-key (this-key map-of-candidates)))))
 
-(defn addToRoot
-  " Helper for adding multiple objects to the root node "
-  [& children]
-  (if-let [rootNode  ($get :rootnode)]
-    (doseq [child children]
-      (.attachChild rootNode child))
-    (throw (Exception. "Global key :rootnode must be set before calling"))))
-
 ;======= INPUT HANDLING
 
 (defn makeInputHandler
@@ -95,14 +87,14 @@
 
 (defn makeCamera
   " Makes a camera for DISPLAYs renderer, sets the global :camera and returns the camera object "
-  [display screen near far]
-  ($set :camera (.. display (getRenderer) (createCamera (:width  screen) (:height screen))))
+  [display settings near far]
+  ($set :camera (.. display (getRenderer) (createCamera (.getWidth settings) (.getHeight settings))))
   (let [ cam    ($get :camera)
          loc    (Vector3f.  500     150   1000)
          left   (Vector3f.   -1.0     0      0)
          up     (Vector3f.    0       1      0)
          dir    (Vector3f.    0       0     -1)
-         ratio  (float (/ (:width screen) (:height screen))) ]
+         ratio  (float (/ (.getWidth settings) (.getHeight settings))) ]
     (.setFrustum            cam near far     50 50 50 50)
     (.setFrustumPerspective cam 45   ratio near far)
     (.setFrame              cam loc left up dir)
@@ -122,6 +114,22 @@
 
 ;======= RESOURCES: STOP - HELPERS START
 
+(defn addToRoot
+  " Helper for adding multiple objects to the root node "
+  [& children]
+  (if-let [rootNode  ($get :rootnode)]
+    (doseq [child children]
+      (.attachChild rootNode child))
+    (throw (Exception. "Global key :rootnode must be set before calling"))))
+
+(defn applyRenderStates
+  " Apply one or more RenderStates to a node. These will be automatically updated
+    using updateRenderState, so toggle individually using setEnabled "
+  [node & states]
+  (doseq [rstate states]
+    (.setRenderState node rstate))
+  (.updateRenderState node))
+
 (defn >Image
   " A helper to convert a file to an Image, via ImageIcon "
   [resource-key]
@@ -136,9 +144,11 @@
     (.setLocalRotation s rotQuad)))
 
 (defn setTexture
-  [obj display tex]
-  (let [texState  (.. display (getRenderer) (createTextureState))
-        texture   (TextureManager/loadTexture (>Image tex) BilNoMipMap Bil true) ]
-    (.setTexture texState texture 0)
-    (.setRenderState obj texState)))
+  [obj tex]
+  (if-let [display   ($get :display) ]
+    (let [texState  (.. display (getRenderer) (createTextureState))
+          texture   (TextureManager/loadTexture (>Image tex) BilNoMipMap Bil true) ]
+      (.setTexture texState texture 0)
+      (.setRenderState obj texState))
+    (throw (Exception. "Global key :display must be set before calling"))))
 

@@ -39,8 +39,6 @@
 
 ;========== IMPORTS: STOP - DEFINITIONS: START
 
-(defstruct screen    :width :height :depth :freq :fullscreen?)
-
 (def app (dk.bestinclass.sofiaba.))
 
 (defn toggle-state
@@ -110,36 +108,30 @@
   [this]
   ($set :settings (. app (getNewSettings)))
   (let [ settings   ($get :settings)
-         screen     (struct-map screen :width       (.getWidth      settings)
-                                       :height      (.getHeight     settings)
-                                       :depth       (.getDepth      settings)
-                                       :freq        (.getFreq       settings)
-                                       :fullscreen? (.getFullscreen settings))
-         display    (.. DisplaySystem (getDisplaySystem (.getRenderer settings ))) ]
-    (.. this (setDisplay display))
-    ($set :window
-          (. display (createWindow (:width screen) (:height screen) (:depth screen)
-                                   (:freq  screen) (:fullscreen? screen))))
-    (.. display (getRenderer) (setBackgroundColor ColorRGBA/black))
-    (let [ camera (makeCamera        display screen 1 4000)
-           input  (makeInputHandler  camera  600     1) ]
-      (.. display (getRenderer) (setCamera camera))
-      (attachCommands { :exit        KeyInput/KEY_ESCAPE
-                        :toggle_wire KeyInput/KEY_T
-                        :nunnaba     KeyInput/KEY_N })
-      (indoctrinate
-          :input   input
+         display    (.. DisplaySystem (getDisplaySystem (.getRenderer settings )))
+         window     (. display (createWindow (.getWidth settings) (.getHeight settings)
+                                             (.getDepth settings) (.getFreq   settings)
+                                             (.getFullscreen settings)))]
+    (attachCommands { :exit        KeyInput/KEY_ESCAPE
+                      :toggle_wire KeyInput/KEY_T
+                      :nunnaba     KeyInput/KEY_N })
+    (indoctrinate
+          :camera  (makeCamera       display settings 1 6000)
+          :input   (makeInputHandler ($get :camera) 600  1)
           :timer   (Timer/getTimer)
-          :screen  screen
-          :display display))))
+          :screen  settings
+          :window  window
+          :display display)
+        (.. this     (setDisplay display))
+    (.. display (getRenderer) (setCamera ($get :camera)))
+    (.. display  (getRenderer) (setBackgroundColor ColorRGBA/black))))
 
-(defn applyRenderStates
-  " Apply one or more RenderStates to a node. These will be automatically updated
-    using updateRenderState, so toggle individually using setEnabled "
-  [node & states]
-  (doseq [rstate states]
-    (.setRenderState node rstate))
-  (.updateRenderState node))
+
+(defn makeBeach
+  []
+  (let [beach  (Box. "Beach" (Vector3f. 0 5 0) 10240 1 1024) ]
+    (setTexture beach :sand)
+    beach))
 
 (defn -initGame
   [this]
@@ -151,19 +143,21 @@
       :waterworld    (buildWater ($get :display))
       :primarylight  (makeDirectedLight [1 1 1 1] [0.5 0.5 0.5 1] [0 -1 0])
       :terrainblock  (buildTerrain)
-      :zbuffer       (makeZBuffer ZBufferState$TestFunction/LessThanOrEqualTo))
+      :zbuffer       (makeZBuffer ZBufferState$TestFunction/LessThanOrEqualTo)
+      :beach         (makeBeach))
   (. ($get :ts) (setEnabled true))
   (. (first ($get :wirestate)) (setEnabled false)) ; This is ugly, because it matched
                                                      ; the $set a couple of lines above
   (addToRoot (:quad1 ($get :waterworld)) (:quad2 ($get :waterworld))
-             ($get :terrainblock) ($get :skybox))
+             ($get :terrainblock) ($get :skybox) ($get :beach))
   (applyRenderStates ($get :rootnode) (first ($get :wirestate)) ($get :primarylight) ($get :zbuffer)))
 
 (defn -reinit
   [this]
-  (let [ scr   ($get :screen) ]
+  (let [ scr   ($get :settings) ]
     (. ($get :display)
-       (reCreateWindow (:width scr) (:height scr) (:depth scr) (:freq scr) (:fullscreen? scr)))))
+       (reCreateWindow (.getWidth scr) (.getHeight scr)
+                       (.getDepth scr) (.getFreq   scr) (.getFullscreen? scr)))))
 
 (defn -cleanup
   [this]

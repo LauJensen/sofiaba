@@ -92,11 +92,10 @@
         (.setRenderState textState)
         (.setDetailTexture 1 16)
         (.setRenderQueueMode 2))) ;; END ImageBasedHeightMap handling
-    (let [ newNode (Node. "Terrain block") ]
-                                        ;        (.attachChild   newNode beach)
-      (.setLocalScale newNode (float 20))
-      (.attachChild   newNode terrainBlock)
-      newNode)))
+      (let [ newNode (Node. "Terrain block") ]
+        (.setLocalScale newNode (float 20))
+        (.attachChild   newNode terrainBlock)
+        newNode)))
       
 ;======= SKYBOX: START
 
