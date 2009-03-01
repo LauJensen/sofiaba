@@ -45,7 +45,13 @@
     ($set :nunna sphere)
     (.attachChild node sphere)))
 
-;======= OBJETS - STOP - TERRAIN: START
+;======= TERRAIN
+
+(defn makeBeach
+  []
+  (let [beach  (Box. "Beach" (Vector3f. 0 5 0) (/ 10240 2) 2 (/ 10240 2)) ]
+    (setTexture beach :sand)
+    beach))
 
 (defn buildTerrain
   []
@@ -97,7 +103,7 @@
         (.attachChild   newNode terrainBlock)
         newNode)))
       
-;======= SKYBOX: START
+;======= SKYBOX
 
 (defn makeSkybox
   []
@@ -116,7 +122,24 @@
       (.setTexture com.jme.scene.Skybox$Face/Down  top))
     skyBox))
 
-;======= SKYBOX: STOP - WATER START
+;======= WATER
+
+(defn updateWater
+  [tpf]
+  (let [  tex1   (:tex1 ($get :waterworld))
+          tex2   (:tex2 ($get :waterworld)) ]
+    (when (> (.getX (.getTranslation tex1)) 5000)
+      (.setTranslation tex1 (Vector3f. 0 0 0)))
+    (when (> (.getY (.getTranslation tex2)) 5000)
+      (.setTranslation tex2 (Vector3f. 0 0 0)))
+    (.setX (.getTranslation tex1) (+ (.getX (.getTranslation tex1)) (* (float 0.00004) tpf)))
+    (.setY (.getTranslation tex2) (+ (.getY (.getTranslation tex2)) (* (float 0.09) tpf)))
+    (doto (:quad1 ($get :waterworld))
+      .updateRenderState
+      (.updateGeometricState tpf true))
+    (doto (:quad2 ($get :waterworld))
+      .updateRenderState
+      (.updateGeometricState tpf true))))
 
 (defn makeAlphaForTransparency
   [display]

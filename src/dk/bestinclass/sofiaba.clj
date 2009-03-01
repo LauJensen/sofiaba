@@ -20,24 +20,25 @@
            (com.jme.light                PointLight DirectionalLight)
            (com.jme.math                 Vector3f)
            (com.jme.renderer             Camera ColorRGBA)
-           (com.jme.scene                Node Text Spatial Skybox)
+           (com.jme.scene                Node Text Spatial Skybox Text)
            (com.jme.scene.shape          Box Sphere Quad)
            (com.jme.scene.state          LightState TextureState WireframeState
                                          ZBufferState ZBufferState$TestFunction)
            (com.jme.system               DisplaySystem JmeException)
-           (com.jme.bounding             BoundingBox)
+           (com.jme.bounding             BoundingBox BoundingSphere)
            (com.jme.util                 TextureManager Timer)
            (com.jme.util.geom            Debugger)
            (com.jmex.terrain             TerrainBlock)
            (com.jmex.terrain.util        MidPointHeightMap ProceduralTextureGenerator ImageBasedHeightMap)
-           (com.jmex.physics             DynamicPhysicsNode StaticPhysicsNode)
-           (com.jmex.physics.util.states PhysicsGameState)
+           (com.jmex.effects.particles    ParticleFactory ParticlePoints SwarmInfluence)
+;           (com.jmex.physics             DynamicPhysicsNode StaticPhysicsNode)
+;           (com.jmex.physics.util.states PhysicsGameState)
            (javax.swing                  ImageIcon))
   (:load           "sofiaba/resources"
                    "sofiaba/wrappers"
                    "sofiaba/environment" ))
 
-;========== IMPORTS: STOP - DEFINITIONS: START
+;========== DEFINITION
 
 (def app (dk.bestinclass.sofiaba.))
 
@@ -52,35 +53,24 @@
   []
   (set! *compile-path* "/home/lau/coding/lisp/projects/sofiaba/classes/")
   (compile 'dk.bestinclass.sofiaba)
-  (in-ns 'dk.bestinclass.sofiaba)
-  (.run #(Thread. (.start app))))
+  (in-ns 'dk.bestinclass.sofiaba))
+;  (.run #(Thread. (.start app))))
 
-;========== MISC: STOP - BASEGAME: START
-
-(defn updateWater
-  [tpf]
-  (let [  tex1   (:tex1 ($get :waterworld))
-          tex2   (:tex2 ($get :waterworld)) ]
-    (when (> (.getX (.getTranslation tex1)) 5000)
-      (.setTranslation tex1 (Vector3f. 0 0 0)))
-    (when (> (.getY (.getTranslation tex2)) 5000)
-      (.setTranslation tex2 (Vector3f. 0 0 0)))
-    (.setX (.getTranslation tex1) (+ (.getX (.getTranslation tex1)) (* (float 0.00004) tpf)))
-    (.setY (.getTranslation tex2) (+ (.getY (.getTranslation tex2)) (* (float 0.09) tpf)))
-    (doto (:quad1 ($get :waterworld))
-      .updateRenderState
-      (.updateGeometricState tpf true))
-    (doto (:quad2 ($get :waterworld))
-      .updateRenderState
-      (.updateGeometricState tpf true))))
+;========== BASEGAME
 
 (defn actOnInput
   [this]
   (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "nunnaba"))
     (addNunna ($get :rootnode) ($get :display))
-    (.updateRenderState ($get :rootnode)))
+    (.updateRenderState ($get :rbootnode)))
   (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "exit"))
     (.finish this)) ; This needs to be unset, otherwise SLIME requires a restart
+  (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "swarm"))
+      (indoctrinate
+          :currentpos (Vector3f. 237 294 239) ;On top of 'mountain-peak'
+          :nextpos    (Vector3f. 324 114 433)) ;Foot of mountain
+      ($set :swarm      (makeSwarm ($get :currentpos)))
+      (addToRoot ($get :swarm)))
   (when (.. KeyBindingManager (getKeyBindingManager) (isValidCommand "toggle_wire"))
     (.. (first ($get :wirestate)) (setEnabled (second ($get :wirestate))))
     (toggle-state :wirestate)
@@ -88,16 +78,24 @@
 
 (defn -update
   [this interpolation]
-  (let [ timer    ($get :timer)
-         input    ($get :input)
-         rootNode ($get :rootnode)
-         tpf      (.getTimePerFrame timer) ]
+  (let [ timer     ($get :timer)
+         input     ($get :input)
+         rootNode  ($get :rootnode)
+         tpf       (.getTimePerFrame timer)
+         cameraLoc (.getLocation ($get :camera)) ]
     (.update timer)
     (actOnInput this)
-    (.. input (update tpf))
+    (updateWater tpf)
+;    (when-not (nil? ($get :swarm))
+ ;           (updateSwarm (.getFrameRate timer)))
+    (.print ($get :fpslabel) (str (format "Camera (%d,%d,%d) "   (int (.x cameraLoc))
+                                                                 (int (.y cameraLoc))
+                                                                 (int (.z cameraLoc)))
+                                  "  FPS: " (int (.getFrameRate timer))))
+    (.update input tpf)
     (. ($get :skybox) (setLocalTranslation (.getLocation ($get :camera))))
-    (.. rootNode (updateGeometricState tpf true))
-    (updateWater tpf)))
+    (.. rootNode (updateGeometricState tpf true))))
+
 
 (defn -render
   [this interpolation]
@@ -114,9 +112,10 @@
                                              (.getFullscreen settings)))]
     (attachCommands { :exit        KeyInput/KEY_ESCAPE
                       :toggle_wire KeyInput/KEY_T
-                      :nunnaba     KeyInput/KEY_N })
+                      :nunnaba     KeyInput/KEY_N
+                      :swarm       KeyInput/KEY_P })
     (indoctrinate
-          :camera  (makeCamera       display settings 1 6000)
+          :camera  (makeCamera       display settings 1 6000 [300 150 1000])
           :input   (makeInputHandler ($get :camera) 600  1)
           :timer   (Timer/getTimer)
           :screen  settings
@@ -126,13 +125,6 @@
     (.. display (getRenderer) (setCamera ($get :camera)))
     (.. display  (getRenderer) (setBackgroundColor ColorRGBA/black))))
 
-
-(defn makeBeach
-  []
-  (let [beach  (Box. "Beach" (Vector3f. 0 5 0) (/ 10240 2) 2 (/ 10240 2)) ]
-    (setTexture beach :sand)
-    beach))
-
 (defn -initGame
   [this]
   (indoctrinate
@@ -140,17 +132,19 @@
       :ts            (.. ($get :display) (getRenderer) (createTextureState))
       :wirestate     [(.. ($get :display) (getRenderer) (createWireframeState)) false]
       :skybox        (makeSkybox)
+      :fpslabel      (makeLabel "Fps Label" "Timer" [1 10 0])
+      :fogstate      (makeFogState ColorRGBA/white 700 4000)
       :waterworld    (buildWater ($get :display))
       :primarylight  (makeDirectedLight [1 1 1 1] [0.5 0.5 0.5 1] [0 -1 0])
       :terrainblock  (buildTerrain)
       :zbuffer       (makeZBuffer ZBufferState$TestFunction/LessThanOrEqualTo)
       :beach         (makeBeach))
   (. ($get :ts) (setEnabled true))
-  (. (first ($get :wirestate)) (setEnabled false)) ; This is ugly, because it matched
-                                                     ; the $set a couple of lines above
+  (. (first ($get :wirestate)) (setEnabled false)) ; This is ugly (see :wirestate init above)
   (addToRoot (:quad1 ($get :waterworld)) (:quad2 ($get :waterworld))
-             ($get :terrainblock) ($get :skybox) ($get :beach))
-  (applyRenderStates ($get :rootnode) (first ($get :wirestate)) ($get :primarylight) ($get :zbuffer)))
+              :terrainblock :skybox :beach :fpslabel)
+  (applyRenderStates ($get :rootnode) (first ($get :wirestate)) ($get :primarylight) ($get :zbuffer)
+                     ($get :fogstate)))
 
 (defn -reinit
   [this]
@@ -166,6 +160,6 @@
 (defn -main
   []
   (doto app
-    (.setConfigShowMode AbstractGame$ConfigShowMode/AlwaysShow (get-resource :logo))
+    (.setConfigShowMode AbstractGame$ConfigShowMode/NeverShow (get-resource :logo))
     .start))
 

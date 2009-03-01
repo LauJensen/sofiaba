@@ -87,10 +87,10 @@
 
 (defn makeCamera
   " Makes a camera for DISPLAYs renderer, sets the global :camera and returns the camera object "
-  [display settings near far]
+  [display settings near far location]
   ($set :camera (.. display (getRenderer) (createCamera (.getWidth settings) (.getHeight settings))))
   (let [ cam    ($get :camera)
-         loc    (Vector3f.  500     150   1000)
+         loc    (eval `(>Vec3f ~location))
          left   (Vector3f.   -1.0     0      0)
          up     (Vector3f.    0       1      0)
          dir    (Vector3f.    0       0     -1)
@@ -112,6 +112,22 @@
         (.setFunction func)))
     (throw (Exception. "Global key :display must be set before calling"))))
 
+;======= ENVIRONMENT
+
+(defn makeFogState
+  [color start end]
+  (if-let [ display   ($get :display) ]
+    (let  [ fs        (.. display (getRenderer) (createFogState)) ]
+      (doto fs
+        (.setDensity         0.5)
+        (.setEnabled         true)
+        (.setColor           color)
+        (.setEnd             end)
+        (.setStart           start)
+        (.setDensityFunction com.jme.scene.state.FogState$DensityFunction/Linear)
+        (.setQuality         com.jme.scene.state.FogState$Quality/PerVertex)))
+    (throw (Exception. "Global key :display must be set before calling"))))
+
 ;======= RESOURCES: STOP - HELPERS START
 
 (defn addToRoot
@@ -119,7 +135,9 @@
   [& children]
   (if-let [rootNode  ($get :rootnode)]
     (doseq [child children]
-      (.attachChild rootNode child))
+      (if (keyword? child)
+      (.attachChild rootNode ($get child))
+      (.attachChild rootNode child)))      
     (throw (Exception. "Global key :rootnode must be set before calling"))))
 
 (defn applyRenderStates
@@ -151,4 +169,74 @@
       (.setTexture texState texture 0)
       (.setRenderState obj texState))
     (throw (Exception. "Global key :display must be set before calling"))))
+
+(defn makeLabel
+  [name content location]
+  (let [ label  (Text/createDefaultTextLabel name content) ]
+    (.setLocalTranslation label (eval `(>Vec3f ~location)))
+    label))
+
+
+;;=== EXPERIMENTAL EXPERIMENTAL EXPERIMENTAL
+
+(defn makeSwarm
+  [offset]
+  (let [ ppoints  (ParticleFactory/buildPointParticles "Swarm" 200)
+         Zstate   (.. ($get :display) (getRenderer) (createZBufferState)) ]
+    (.setEnabled Zstate true)
+    (doto ppoints
+      (.setPointSize         1.5) ;arg
+      (.setAntialiased       true)
+      (.setEmissionDirection offset) ; arg
+      (.setOriginOffset      offset)
+      (.setInitialVelocity   (float 0.4))
+      (.setStartSize         (float 3))
+      (.setEndSize           (float 1))
+      (.setMinimumLifeTime    100)
+      (.setMaximumLifeTime    1000)
+      (.setStartColor        (ColorRGBA. 0 0 1 1))
+      (.setEndColor          (ColorRGBA. 0 1 1 0))
+      (.setMaximumAngle      (* 360 FastMath/DEG_TO_RAD))
+      (.warmUp               220)
+      (.setRenderState       Zstate)
+      (.setModelBound        (BoundingSphere.))
+      .updateModelBound)
+    (let [swarm   (SwarmInfluence. (.getWorldTranslation ppoints) 500) ]
+      (doto swarm
+        (.setMaxSpeed  (float 2))
+        (.setSpeedBump (float 5))
+        (.setTurnSpeed (* FastMath/DEG_TO_RAD 360)))
+      (.. ppoints (getParticleController) (setControlFlow false))
+;      (.addInfluence ppoints swarm)
+      ppoints)))
+
+(defn isCollided?
+  [obj1 obj2]
+   (and (= (int (.x obj1)) (int (.x obj2)))
+        (= (int (.y obj1)) (int (.y obj2)))              
+        (= (int (.z obj1)) (int (.z obj2)))))
+
+(defn strvec
+  [vec3f]
+  (format "[x: %d|y: %d|z: %d]" (int (.x vec3f)) (int (.y vec3f)) (int (.z vec3f))))
+
+(defn updateSwarm
+  [fps]
+  (when (isCollided? ($get :currentpos) ($get :nextpos))
+;    (println "COLLISION")
+    ($set :nextpos (Vector3f.
+                    (float (- (* (Math/random) 50) 0))
+                    (float (- (* (Math/random) 50) 0))
+                    (float (- (* (Math/random) 50) 0)))))
+  (let [currentPos  ($get :currentpos)
+        nextPos     ($get :nextpos)
+        fps         (/ fps 2) ]
+  ;  (println (str (strvec ($get :currentpos)) " - " (strvec ($get :nextpos))))
+    ($set :currentpos (Vector3f.
+                      (/ (Math/abs (- (.x ($get :currentpos)) (.x ($get :nextpos)))) 8)
+                      (/ (Math/abs (- (.y ($get :currentpos)) (.y ($get :nextpos)))) 8)
+                      (/ (Math/abs (- (.z ($get :currentpos)) (.z ($get :nextpos)))) 8)))
+ ;   (println (str (strvec ($get :currentpos)) " - " (strvec ($get :nextpos))))
+  (.setOriginOffset ($get :swarm) ($get :currentpos))))
+
 
